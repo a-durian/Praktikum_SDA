@@ -1,7 +1,7 @@
 #include <iostream>
 using namespace std;
 
-
+// membuat struct Mahasiswa untuk menyimpan data mahasiswa
 struct Mahasiswa {
     string nama;
     string nim;
@@ -17,12 +17,12 @@ int main() {
     for (int i = 0; i < jumlah_mahasiswa; i++) {
         cout << "Masukkan data Mahasiswa ke-" << (i + 1) << ":" << endl;
         cout << "Nama: ";
-        getline(cin, mahasiswa[i].nama);
+        getline(cin, mahasiswa[i].nama); // menggunakan getline untuk membaca nama yang mungkin mengandung spasi
         cout << "NIM: ";
-        getline(cin, mahasiswa[i].nim);
+        getline(cin, mahasiswa[i].nim); // menggunakan getline untuk membaca NIM yang mungkin mengandung spasi
         cout << "IPK: ";
         cin >> mahasiswa[i].ipk;
-        cin.ignore();
+        cin.ignore(); // .ignor untuk membersihkan newline character dari input sebelumnya
     }
 
     // Mencari mahasiswa dengan IPK tertinggi
