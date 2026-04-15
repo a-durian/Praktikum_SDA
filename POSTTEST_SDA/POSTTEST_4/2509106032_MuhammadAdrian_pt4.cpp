@@ -25,6 +25,11 @@ struct Tiket {
 const int MAKS = 20;
 
 // >>>> STRUCT QUEUE <<<<
+struct NodeQueue {
+    Penumpang data;
+    NodeQueue* next; //pointer next
+};
+
 struct Queue {
     Penumpang data[MAKS];
     int front;
@@ -32,72 +37,122 @@ struct Queue {
     int ukuran;
 };
 
-void initQueue(Queue* q) {
-    q->front = 0;
-    q->rear  = -1;
-    q->ukuran = 0;
-};
+struct QueueLL {                    
+    NodeQueue* front; //ointer ke node terdepan
+    NodeQueue* rear; //pointer ke node terbelakang
+    int ukuran;
+};   
 
-bool isQueueEmpty(Queue* q) { return q->ukuran == 0; }
-bool isQueueFull(Queue* q) { return q->ukuran == MAKS; }
-
-// ambil penumpang ke belakang antrian
-bool enqueue(Queue* q, Penumpang p) {
-    if (isQueueFull(q)) return false;
-    q->rear = (q->rear + 1) % MAKS; // circular array
-    *(q->data + q->rear) = p;        // dereferensi pointer
-    q->ukuran++;
-    return true;
+void initQueueLL(QueueLL* q) {   
+    q->front  = nullptr;
+    q->rear   = nullptr;   
+    q->ukuran = 0; 
 }
 
+bool isQueueLLEmpty(QueueLL* q) { return q->front == nullptr; }
+
+// mengamambil penumpang ke belakang antrian
+bool enqueueLL(QueueLL* q, Penumpang p) {
+    NodeQueue* baru = new NodeQueue;
+    baru->data = p; 
+    baru->next = nullptr; 
+ 
+    if (isQueueLLEmpty(q)) {
+        q->front = baru;
+        q->rear  = baru; 
+    } else { 
+        q->rear->next = baru;
+        q->rear = baru;
+    }    
+    q->ukuran++; 
+    return true; 
+}       
+
 // ambil penumpang terdepan dalam antrian
-bool dequeue(Queue* q, Penumpang* hasil) {
-    if (isQueueEmpty(q)) return false;
-    *hasil = *(q->data + q->front); // dereferensi pointer
-    q->front = (q->front + 1) % MAKS; // circular array
+bool dequeueLL(QueueLL* q, Penumpang* hasil) {
+    if (isQueueLLEmpty(q)) return false;  //underflow: antrian kosong
+    NodeQueue* hapus = q->front;
+    *hasil = hapus->data;
+    q->front = q->front->next;
+    if(q->front == nullptr) q->rear = nullptr;
+    delete hapus;
     q->ukuran--;
     return true;
 }
 
 // peek front antrian
-bool peekQueue(Queue* q, Penumpang* hasil) {
-    if (isQueueEmpty(q)) return false;
-    *hasil = *(q->data + q->front);
+bool peekQueueLL(QueueLL* q, Penumpang* hasil) {
+    if (isQueueLLEmpty(q)) return false; // <- underflow: antrian kosong
+    *hasil = q->front->data;
     return true;
 }
 
 // >>>> STRUCT STACK <<<
-struct Stack {
-    Tiket data[MAKS];
-    int top;
+struct NodeStack {
+    Tiket data;
+    NodeStack* next;
 };
 
-void initStack(Stack* s) { s->top = -1; }
+struct StackLL {
+    NodeStack* top;
+    int ukuran;
+};
 
-bool isStackEmpty(Stack* s) { return s->top == -1; }
-bool isStackFull(Stack* s) { return s->top == MAKS - 1; }
-
-// tambah tiket ke stack
-bool push(Stack* s, Tiket t) {
-    if (isStackFull(s)) return false;
-    s->top++;
-    *(s->data + s->top) = t;
-    return true;
+void initStack(StackLL* s) {
+    s->top = nullptr;
+    s->ukuran =0;
 }
 
-// peek top stack
-bool peekStack(Stack* s, Tiket* hasil){
-    if(isStackEmpty(s)) return false;
-    *hasil = *(s->data + s->top);
+bool isStackLLEmpty(StackLL* s) { return s->top == nullptr; }
+
+// tambah tiket ke stack
+bool pushLL(StackLL* s, Tiket t) {
+    NodeStack* baru = new NodeStack;
+    baru->data = t;
+    baru->next = s->top;
+    s->top = baru;
+    s->ukuran++;
     return true;
 }
 
 // hapus tiket teratas dari stack
-bool pop(Stack* s, Tiket* hasil) {
-    if(isStackEmpty(s)) return false; 
-    *hasil = *(s->data + s->top); // dereferensi pointer
-    s->top--;
+bool popLL(StackLL* s, Tiket* hasil) {  
+    if (isStackLLEmpty(s)) return false;
+    NodeStack* hapus = s->top;
+    *hasil = hapus->data; 
+    s->top = s->top->next; 
+    delete hapus;        
+    s->ukuran--;      
+    return true;       
+} 
+
+// peek top stack
+bool peekStackLL(StackLL* s, Tiket* hasil){
+    if(isStackLLEmpty(s)) return false;
+    *hasil = s->top->data;
     return true;
+}
+
+void destroyQueueLL(QueueLL* q) {
+    NodeQueue* curr = q->front;
+    while (curr != nullptr) { 
+        NodeQueue* temp = curr->next;
+        delete curr;
+        curr = temp; 
+    }   
+    q->front = q->rear = nullptr;
+    q->ukuran = 0;
+}         
+
+void destroyStackLL(StackLL* s) {
+    NodeStack* curr = s->top;    
+    while (curr != nullptr) { 
+        NodeStack* temp = curr->next;
+        delete curr;
+        curr = temp;
+    }
+    s->top = nullptr; 
+    s->ukuran = 0;
 }
 
 // >>> cari kereta berdasarkan nomor(Helper) <<<<
@@ -353,221 +408,166 @@ void tampilkanDaftarNomorKereta(Kereta* arr, int n) {
 }
 
 // 1. Antrian Beli Tiket - enqueue penumpang ke queue
-void antrianBeliTiket(Kereta* arr, int n, Queue* q) {
-    if (isQueueFull(q)) {
-        cout << endl << " [!!] Antrian sudah penuh! Tidak bisa menambah penumpang." << endl;
-        return;
-    }
-    cout << endl << ">>> Antrian Beli Tiket <<<" << endl;
-    tampilkanDaftarNomorKereta(arr,n);
+void antrianBeliTiketLL(Kereta* arr, int n, QueueLL* q) { 
+    cout << endl << ">>> Antrian Beli Tiket (Linked List) <<<" << endl; 
+    tampilkanDaftarNomorKereta(arr, n);                                
 
     Penumpang p;
     cin.ignore();
     cout << "> Nama Penumpang : "; getline(cin, p.nama);
-    cout << "> Nomor Kereta : "; cin >> p.nomor_kereta;
+    cout << "> Nomor Kereta   : "; cin >> p.nomor_kereta;
 
-    // validasi nomor kereta
     Kereta* k = cariKeretaByNomor(arr, n, p.nomor_kereta);
-    if (k == nullptr) {
-        cout << endl << " [!!] Nomor kereta tidak ditemukan. Antrian dibatalkan." << endl;
+    if (k == nullptr) {      
+        cout << endl << "  [!!] Nomor kereta tidak ditemukan." << endl;
         return;
     }
     if (k->kursi_tersedia == 0) {
         cout << endl << "  [!!] Maaf, kursi untuk kereta " << k->nama_kereta << " sudah habis." << endl;
-        return;
+        return;                                                        
     }
-
-    enqueue(q, p);
-    cout << endl << "  [+] " << p.nama << " berhasil masuk antrian ke-" << q->ukuran << " unutk kereta " << k->nama_kereta << "." << endl;
-
-}
+    enqueueLL(q, p);
+    cout << endl << "  [+] " << p.nama << " berhasil masuk antrian ke-"
+         << q->ukuran << " untuk kereta " << k->nama_kereta << "." << endl;
+} 
 
 // 2. Proses Tiket — dequeue dari Queue, push ke Stack
-void prosesTiket(Kereta* arr, int n, Queue* q, Stack* s) {
-    if (isQueueEmpty(q)) {
+void prosesTiketLL(Kereta* arr, int n, QueueLL* q, StackLL* s) {
+    if (isQueueLLEmpty(q)) {
         cout << endl << "  [!!] Antrian kosong, tidak ada yang diproses." << endl;
-        return;
+        return; 
     }
-    if (isStackFull(s)) {
-        cout << endl << "  [!!] Riwayat transaksi penuh!" << endl;
-        return;
-    }
- 
+
     Penumpang p;
-    dequeue(q, &p); // ambil dari front antrian
- 
+    dequeueLL(q, &p);
+
     Kereta* k = cariKeretaByNomor(arr, n, p.nomor_kereta);
-    if (k == nullptr) {
+    if (k == nullptr) {                                                 
         cout << endl << "  [!!] Data kereta tidak ditemukan (data rusak)." << endl;
         return;
-    }
- 
-    // mengurangi kursi tersedia
-    (k)->kursi_tersedia--;
- 
-    // buat record tiket lalu push ke stack
+    } 
+
+    k->kursi_tersedia--;
     Tiket t;
     t.nama_penumpang = p.nama;
     t.nomor_kereta = k->nomor_kereta;
-    t.nama_kereta = k->nama_kereta;
-    t.asal = k->asal;
-    t.tujuan  = k->tujuan;
+    t.nama_kereta = k->nama_kereta; 
+    t.asal = k->asal; 
+    t.tujuan= k->tujuan;
     t.harga_tiket = k->harga_tiket;
-    push(s, t);
- 
-    cout << endl << "  [+] Tiket berhasil diproses!" << endl;
-    cout << "  ------------------------------------------" << endl;
-    cout << "  Penumpang : " << t.nama_penumpang<< endl;
-    cout << "  Kereta    : " << t.nama_kereta << endl;
-    cout << "  Rute      : " << t.asal << " -> " << t.tujuan << endl;
-    cout << "  Harga     : Rp " << t.harga_tiket  << endl;
-    cout << "  ------------------------------------------" << endl;
-    cout << "  Sisa antrian: " << q->ukuran << " penumpang." << endl;
+    pushLL(s, t); 
+    cout << endl << "  [+] Tiket berhasil diproses!" << endl;          
+    cout << "  ------------------------------------------" << endl;   
+    cout << "  Penumpang : " << t.nama_penumpang << endl;              
+    cout << "  Kereta    : " << t.nama_kereta    << endl;              
+    cout << "  Rute      : " << t.asal << " -> " << t.tujuan << endl; 
+    cout << "  Harga     : Rp " << t.harga_tiket << endl;             
+    cout << "  ------------------------------------------" << endl;   
+    cout << "  Sisa antrian: " << q->ukuran << " penumpang." << endl; 
 }
 
 // 3. Batalkan Transaksi (pop dari stack)
-void batalkanTransaksi(Stack* s) {
-    if (isStackEmpty(s)) {
-        cout << endl << "  [!!] UNDERFLOW: Riwayat kosong, tidak ada transaksi untuk dibatalkan." << endl;
+void batalkanTransaksiLL(StackLL* s) {
+    if (isStackLLEmpty(s)) { 
+        cout << endl << "  [!!] UNDERFLOW: Riwayat kosong, tidak ada transaksi untuk dibatalkan." << endl; 
         return;
     }
     Tiket t;
-    pop(s, &t);
-    cout << endl << "  [-] Transaksi terakhir dibatalkan:" << endl;
-    cout << "  ------------------------------------------" << endl;
-    cout << "  Penumpang : " << t.nama_penumpang            << endl;
-    cout << "  Kereta    : " << t.nama_kereta               << endl;
+    popLL(s, &t); 
+    cout << endl << "  [-] Transaksi terakhir dibatalkan:" << endl;  
+    cout << "  ------------------------------------------" << endl; 
+    cout << "  Penumpang : " << t.nama_penumpang << endl;
+    cout << "  Kereta    : " << t.nama_kereta    << endl; 
     cout << "  Rute      : " << t.asal << " -> " << t.tujuan << endl;
-    cout << "  Harga     : Rp " << t.harga_tiket            << endl;
-    cout << "  ------------------------------------------" << endl;
-}
+    cout << "  Harga     : Rp " << t.harga_tiket << endl;
+    cout << "  ------------------------------------------" << endl; 
+}     
 
 // / 4. Peek( menampilkan front antrian & top stack)
-void peek(Queue* q, Stack* s) {
-    cout << endl << ">>> PEEK <<<" << endl;
+void peekLL(QueueLL* q, StackLL* s) {
+    cout << endl << ">>> PEEK (Linked List) <<<" << endl;
  
     cout << endl << "  [Antrian] Penumpang terdepan:" << endl;
-    if (isQueueEmpty(q)) {
+    if (isQueueLLEmpty(q)) {         
         cout << "  Antrian kosong." << endl;
-    } else {
-        Penumpang p;
-        peekQueue(q, &p);
-        cout << "  Nama      : " << p.nama          << endl;
-        cout << "  No. KA    : " << p.nomor_kereta  << endl;
-    }
+    } else {                         
+        Penumpang p; 
+        peekQueueLL(q, &p);
+        cout << "  Nama   : " << p.nama         << endl;
+        cout << "  No. KA : " << p.nomor_kereta << endl; 
+    } 
  
-    cout << endl << "  [Riwayat] Transaksi terakhir:" << endl;
-    if (isStackEmpty(s)) {
+    cout << endl << " [Riwayat] Transaksi terakhir:" << endl;
+    if (isStackLLEmpty(s)) { 
         cout << "  Riwayat kosong." << endl;
-    } else {
-        Tiket t;
-        peekStack(s, &t);
-        cout << "  Penumpang : " << t.nama_penumpang              << endl;
-        cout << "  Kereta    : " << t.nama_kereta                 << endl;
-        cout << "  Rute      : " << t.asal << " -> " << t.tujuan  << endl;
-        cout << "  Harga     : Rp " << t.harga_tiket              << endl;
-    }
+    } else { 
+        Tiket t; 
+        peekStackLL(s, &t); 
+        cout << "  Kereta    : " << t.nama_kereta    << endl;  
+        cout << "  Rute      : " << t.asal << " -> " << t.tujuan << endl; 
+        cout << "  Harga     : Rp " << t.harga_tiket << endl; 
+    }                                
 }
 
-// 5. Tampilkan semua penumpang (hasil transaksi dari stack)
-void tampilkanPenumpang(Stack* s) {
-    cout << endl << ">>> Daftar Penumpang (Tiket Diproses) <<<" << endl;
-    if (isStackEmpty(s)) {
-        cout << "  Belum ada tiket yang diproses." << endl;
-        return;
-    }
-    cout << "+" << string(5,'-') << "+" << string(20,'-') << "+" << string(12,'-')
-         << "+" << string(27,'-') << "+" << string(12,'-') << "+" << endl;
-    cout << "| " << left << setw(4) << "No"
-         << "| " << setw(19) << "Nama Penumpang"
-         << "| " << setw(11) << "No. KA"
-         << "| " << setw(26) << "Rute"
-         << "| " << setw(11) << "Harga"
-         << "|" << endl;
-    cout << "+" << string(5,'-') << "+" << string(20,'-') << "+" << string(12,'-')
-         << "+" << string(27,'-') << "+" << string(12,'-') << "+" << endl;
- 
-    // iterasi dari bawah (index 0) ke top dengan pointer aritmatika
-    for (int i = 0; i <= s->top; i++) {
-        Tiket* t = s->data + i; // <<- pointer aritmatika
-        string rute = t->asal + " -> " + t->tujuan;
-        cout << "| " << left << setw(4) << (i + 1)
-             << "| " << setw(19) << t->nama_penumpang
-             << "| " << setw(11) << t->nomor_kereta
-             << "| " << setw(26) << rute
-             << "| Rp " << right << setw(8) << t->harga_tiket
-             << "|" << endl;
-    }
-    cout << "+" << string(5,'-') << "+" << string(20,'-') << "+" << string(12,'-')
-         << "+" << string(27,'-') << "+" << string(12,'-') << "+" << endl;
-    cout << "  Total tiket diproses: " << s->top + 1 << endl;
-}
-
-// 6. Tampilkan semua antrian
-void tampilkanAntrian(Queue* q) {
-    cout << endl << ">>> Daftar Antrian Pembelian Tiket <<<" << endl;
-    if (isQueueEmpty(q)) {
-        cout << "  Antrian kosong." << endl;
-        return;
-    }
-    cout << "+" << string(5,'-') << "+" << string(20,'-') << "+" << string(12,'-') << "+" << endl;
-    cout << "| " << left << setw(4) << "No"
-         << "| " << setw(19) << "Nama Penumpang"
-         << "| " << setw(11) << "No. KA"
-         << "|" << endl;
+// 5. Tampilkan semua antrian
+void tampilkanAntrianLL(QueueLL* q) {
+    cout << endl << ">>> Daftar Antrian Pembelian Tiket <<<" << endl; 
+    if (isQueueLLEmpty(q)) {          
+        cout << "  Antrian kosong." << endl; return; 
+    }                                 
+    cout << "+" << string(5,'-') << "+" << string(20,'-') << "+" << string(12,'-') << "+" << endl; 
+    cout << "| " << left << setw(4) << "No" 
+         << "| " << setw(19) << "Nama Penumpang" 
+         << "| " << setw(11) << "No. KA" << "|" << endl;
     cout << "+" << string(5,'-') << "+" << string(20,'-') << "+" << string(12,'-') << "+" << endl;
  
-    // iterasi dari front ke rear dengan pointer aritmatika (circular array)
-    for (int i = 0; i < q->ukuran; i++) {
-        int idx = (q->front + i) % MAKS;
-        Penumpang* p = q->data + idx; // <- pointer aritmatika
-        cout << "| " << left << setw(4) << (i + 1)
-             << "| " << setw(19) << p->nama
-             << "| " << setw(11) << p->nomor_kereta
-             << "|" << endl;
-    }
-    cout << "+" << string(5,'-') << "+" << string(20,'-') << "+" << string(12,'-') << "+" << endl;
-    cout << "  Total antrian: " << q->ukuran << endl;
-}
-
-// 7. Tampilkan semua riwayat 
-void tampilkanRiwayat(Stack* s) {
-    cout << endl << ">>> Riwayat Transaksi (Terbaru di Atas) <<<" << endl;
-    if (isStackEmpty(s)) {
-        cout << "  Riwayat kosong." << endl;
-        return;
-    }
-    cout << "+" << string(5,'-') << "+" << string(20,'-') << "+" << string(12,'-')
-         << "+" << string(27,'-') << "+" << string(12,'-') << "+" << endl;
-    cout << "| " << left << setw(4) << "No"
-         << "| " << setw(19) << "Nama Penumpang"
-         << "| " << setw(11) << "No. KA"
-         << "| " << setw(26) << "Rute"
-         << "| " << setw(11) << "Harga"
-         << "|" << endl;
-    cout << "+" << string(5,'-') << "+" << string(20,'-') << "+" << string(12,'-')
-         << "+" << string(27,'-') << "+" << string(12,'-') << "+" << endl;
- 
-    // iterasi dari top ke bawah (riwayat terbaru di atas) dengan pointer aritmatika
     int nomor = 1;
-    for (int i = s->top; i >= 0; i--) {
-        Tiket* t = s->data + i; // <- pointer aritmatika
-        string rute = t->asal + " -> " + t->tujuan;
-        cout << "| " << left << setw(4) << nomor++
-             << "| " << setw(19) << t->nama_penumpang
-             << "| " << setw(11) << t->nomor_kereta
-             << "| " << setw(26) << rute
-             << "| Rp " << right << setw(8) << t->harga_tiket
-             << "|" << endl;
+    NodeQueue* curr = q->front;
+    while (curr != nullptr) {
+        cout << "| " << left << setw(4) << nomor++                      
+             << "| " << setw(19) << curr->data.nama                     
+             << "| " << setw(11) << curr->data.nomor_kereta << "|" << endl; 
+        curr = curr->next; 
+    }                                 
+    cout << "+" << string(5,'-') << "+" << string(20,'-') << "+" << string(12,'-') << "+" << endl; 
+    cout << "  Total antrian: " << q->ukuran << endl;                   
+}              
+
+// 6. Tampilkan semua riwayat 
+void tampilkanRiwayatLL(StackLL* s) {
+    cout << endl << ">>> Riwayat Transaksi Terbaru di Atas <<<" << endl;
+    if (isStackLLEmpty(s)) { 
+        cout << "  Riwayat kosong." << endl; return;
     }
     cout << "+" << string(5,'-') << "+" << string(20,'-') << "+" << string(12,'-')
          << "+" << string(27,'-') << "+" << string(12,'-') << "+" << endl;
-    cout << "  Total riwayat: " << s->top + 1 << endl;
-}
+    cout << "| " << left << setw(4) << "No"
+         << "| " << setw(19) << "Nama Penumpang"
+         << "| " << setw(11) << "No. KA"
+         << "| " << setw(26) << "Rute"
+         << "| " << setw(11) << "Harga" << "|" << endl;
+    cout << "+" << string(5,'-') << "+" << string(20,'-') << "+" << string(12,'-')
+         << "+" << string(27,'-') << "+" << string(12,'-') << "+" << endl;
  
+    int nomor = 1;
+    NodeStack* curr = s->top;
+    while (curr != nullptr) {
+        string rute = curr->data.asal + " -> " + curr->data.tujuan;
+        cout << "| " << left << setw(4) << nomor++
+             << "| " << setw(19) << curr->data.nama_penumpang
+             << "| " << setw(11) << curr->data.nomor_kereta
+             << "| " << setw(26) << rute
+             << "| Rp " << right << setw(8) << curr->data.harga_tiket
+             << "|" << endl;
+        curr = curr->next;
+    }                                
+    cout << "+" << string(5,'-') << "+" << string(20,'-') << "+" << string(12,'-')
+         << "+" << string(27,'-') << "+" << string(12,'-') << "+" << endl;
+    cout << "  Total riwayat: " << s->ukuran << endl;   
+}      
 
 // >>> MENU PEMBELIAN TIKETTTTT 
-void menuPembelianTiket(Kereta* arr, int n, Queue* q, Stack* s){
+void menuPembelianTiket(Kereta* arr, int n, QueueLL* q, StackLL* s){
     int pilihan;
     do{
      cout << endl << endl;
@@ -578,40 +578,36 @@ void menuPembelianTiket(Kereta* arr, int n, Queue* q, Stack* s){
         cout << "    2. Proses Tiket"                             << endl;
         cout << "    3. Batalkan Transaksi"                       << endl;
         cout << "    4. Peek Antrian & Riwayat"                   << endl;
-        cout << "    5. Tampilkan Penumpang"                      << endl;
-        cout << "    6. Tampilkan Antrian"                        << endl;
-        cout << "    7. Tampilkan Riwayat"                        << endl;
+        cout << "    5. Tampilkan Antrian"                        << endl;
+        cout << "    6. Tampilkan Riwayat"                        << endl;
         cout << "    0. Kembali ke Menu Utama"                    << endl;
         cout << ">>>=========================================<<<" << endl;
         cout << "> Pilihan: "; cin  >> pilihan;
 
         switch(pilihan) {
             case 1:
-                antrianBeliTiket(arr, n, q);
+                antrianBeliTiketLL(arr, n, q);
                 break;
             case 2:
-                prosesTiket(arr, n, q, s);
+                prosesTiketLL(arr, n, q, s);
                 break;
             case 3:
-                batalkanTransaksi(s);
+                batalkanTransaksiLL(s);
                 break;
             case 4:
-                peek(q, s);
+                peekLL(q, s);
                 break;
             case 5:
-                tampilkanPenumpang(s);
+                tampilkanAntrianLL(q);
                 break;
             case 6:
-                tampilkanAntrian(q);
-                break;
-            case 7:
-                tampilkanRiwayat(s);
+                tampilkanRiwayatLL(s);
                 break;
             case 0:
-                cout << endl << "[^] Kembali ke menu utama.." << endl << endl;
+                cout << endl << " [^] Kembali ke menu utama.." << endl << endl;
                 break;
             default:
-                cout << endl << "[!!] Pilihan tidak valid. Silakan coba lagi." << endl;
+                cout << endl << " [!!] Pilihan tidak valid. Silakan coba lagi." << endl;
                 menuPembelianTiket(arr, n, q, s);
                 break;
         }
@@ -633,9 +629,10 @@ int main(){
 
     int n = 8;
     int pilihan;
-    Queue antrian;
-    Stack riwayat;
-    initQueue(&antrian);
+
+    QueueLL antrian;
+    StackLL riwayat;
+    initQueueLL(&antrian);
     initStack(&riwayat);
 
     do{
@@ -649,8 +646,8 @@ int main(){
         cout << "    4. Cari Berdasarkan Nomor (Jump Search)"         << endl;
         cout << "    5. Urutkan Berdasarkan Nama (Merge Sort)"        << endl;
         cout << "    6. Urutkan Berdasarkan Harga (Selection Sort)"   << endl;
-        cout << "    7. Menu Pembelian Tiket"                         << endl;
-        cout << "    0. Keluar"                                       << endl;
+        cout << "    7. Menu Pembelian Tiket (Linked List)"                         << endl;
+        cout << "    0. Keluar"             << endl;
         cout << ">>>==============================================<<<" << endl;
         cout << "> Pilihan: "; cin  >> pilihan;
 
@@ -683,5 +680,9 @@ int main(){
                 cout << endl << "[!!] Pilihan tidak valid. Silakan coba lagi." << endl;
         }
     } while (pilihan != 0);
+
+    destroyQueueLL(&antrian);
+    destroyStackLL(&riwayat);
+
     return 0;
 }
